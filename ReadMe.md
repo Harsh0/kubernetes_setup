@@ -175,7 +175,45 @@ and to push all branch's code
 
 Now as I have Source Repository setup, I can now setup by build trigger by going to Build Trigger inside Cloud Build in Google Cloud Platform
 
-![alt text](https://github.com/adam-p/markdown-here/raw/master/src/common/images/icon48.png "Logo Title Text 1")
+![GCP Cloud Build](https://github.com/harsh0/kubernetes_setup/raw/master/images/buildtrigger.png "GCP Cloud Build")
+
+In This add branch name as dev or master depend for which enviroment you are creating, basically this whenever there is a push on this branch, this trigger will create the docker image inside GCR.
+
+> Hit Create Trigger to save your trigger
+
+There is more customize way though to create your docker file and also set that image to the latest deployment, which is using `cloudbuild.yaml` file, you need to specify the location of this file or you can keep in root of the codebase.
+
+This file look like below
+
+```yaml
+steps:
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      [
+        "build",
+        "-t",
+        "gcr.io/$_KUBE_PROJECT/$REPO_NAME-$BRANCH_NAME:$SHORT_SHA",
+        ".",
+      ]
+  - name: "gcr.io/cloud-builders/docker"
+    args: ["push", "gcr.io/$_KUBE_PROJECT/$REPO_NAME-$BRANCH_NAME:$SHORT_SHA"]
+  - name: "gcr.io/cloud-builders/kubectl"
+    args:
+      - "set"
+      - "image"
+      - "deployment/$_APP_NAME"
+      - "$_APP_NAME=gcr.io/$_KUBE_PROJECT/$REPO_NAME-$BRANCH_NAME:$SHORT_SHA"
+    env:
+      - "CLOUDSDK_COMPUTE_ZONE=${_KUBE_ZONE}"
+      - "CLOUDSDK_CONTAINER_CLUSTER=${_KUBE_CLUSTER}"
+      - "CLOUDSDK_CORE_PROJECT=${_KUBE_PROJECT}"
+```
+
+As you can see, there are three steps `docker build`, `docker push` and `kubectl set`. This is more customize way as we can do more step if required and do things in configurable way.
+
+For this you should have your build trigger setup like this
+
+![GCP Cloud Build](https://github.com/harsh0/kubernetes_setup/raw/master/images/buildtrigger_cloudbuild.png "GCP Cloud Build")
 
 //install helm
 brew install kubernetes-helm
