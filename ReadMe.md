@@ -107,6 +107,8 @@ To reapply secrets if some value changes, use command below
 
 `kubectl apply -f app-secrets-base64.yaml`
 
+### Apply Deployment
+
 Now to add the deployment first create file `app.yaml` with content
 
 ```yaml
@@ -175,7 +177,7 @@ and to push all branch's code
 
 Now as I have Source Repository setup, I can now setup by build trigger by going to Build Trigger inside Cloud Build in Google Cloud Platform
 
-![GCP Cloud Build](https://github.com/harsh0/kubernetes_setup/raw/master/images/buildtrigger.png "GCP Cloud Build")
+![GCP Cloud Build](images/buildtrigger.png "GCP Cloud Build")
 
 In This add branch name as dev or master depend for which enviroment you are creating, basically this whenever there is a push on this branch, this trigger will create the docker image inside GCR.
 
@@ -213,9 +215,79 @@ As you can see, there are three steps `docker build`, `docker push` and `kubectl
 
 For this you should have your build trigger setup like this
 
-![GCP Cloud Build](https://github.com/harsh0/kubernetes_setup/raw/master/images/buildtrigger_cloudbuild.png "GCP Cloud Build")
+![GCP Cloud Build Cloudbuild.yaml](images/buildtrigger_cloudbuild.png "GCP Cloud Build Cloudbuild.yaml")
+
+> It may give error for first time, so i suggest build first image using Dockerfile only and then after `export LATEST_TAG tag_7t78` exporting to shell reapply app.yaml using `kubectl apply -f app.yaml`. Note: you need to export other variables too. And later you can use `cloudbuild.yaml` file.
+
+Now your deployment is done, its time to expose it using Service and Ingress
+
+## Creating Service and Ingress
+
+A Kubernetes Service is an abstraction which defines a logical set of Pods and a policy by which to access them - sometimes called a micro-service.
+
+Typically, services and pods have IPs only routable by the cluster network. All traffic that ends up at an edge router is either dropped or forwarded elsewhere.
+
+An Ingress is a collection of rules that allow inbound connections to reach the cluster services.
+
+It can be configured to give services externally-reachable URLs, load balance traffic, terminate SSL, offer name based virtual hosting, and more. Users request ingress by POSTing the Ingress resource to the API server. An Ingress controller is responsible for fulfilling the Ingress, usually with a loadbalancer, though it may also configure your edge router or additional frontends to help handle the traffic in an HA manner.
+
+### Creating Service
+
+Create `app-service.yaml` file having the content like below
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: appServiceName # app-service
+  labels:
+    app: appName
+    service: api
+spec:
+  type: NodePort
+  selector:
+    app: appName
+    service: api
+  ports:
+    - protocol: TCP
+      port: 80 # Outside port
+      targetPort: 8001 # PORT at which container is serving content
+```
+
+Now run below command to apply service
+
+`Kubectl apply -f app-service.yaml`
+
+### Creating Ingress
+
+Create `app-ingress.yaml` file having content like below
+
+```yaml
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: appIngressName # app-api
+  annotations:
+    kubernetes.io/ingress.global-static-ip-name: appIPName
+  labels:
+    app: appName
+spec:
+  backend:
+    serviceName: appServiceName
+    servicePort: 80
+```
+
+Now run below command to apply ingress
+
+`kubectl apply -f app-ingress.yaml`
+
+Now you will have setup your app with a public ip that you can get from ingress by going to Google Cloud Platform that you can map with your DNS.
+
+KUDOS!
+
+<!--
 
 //install helm
 brew install kubernetes-helm
 //then init
-helm init
+helm init -->
